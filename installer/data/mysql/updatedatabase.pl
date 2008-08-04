@@ -1921,6 +1921,22 @@ END_SQL
     SetVersion($DBversion);
 }
 
+$DBversion = "3.00.00.106";
+if (C4::Context->preference("Version") < TransformToNum($DBversion)) {
+    $dbh->do("DELETE FROM systempreferences WHERE variable='noOPACHolds'");
+
+# db revision 105 didn't apply correctly, so we're rolling this into 106
+	$dbh->do("INSERT INTO `systempreferences`
+   (variable,value,explanation,options,type)
+	VALUES
+	('SMSSendDriver','','Sets which SMS::Send driver is used to send SMS messages.','','free')");
+
+    print "Upgrade to $DBversion done (remove default '0000-00-00' in subscriptionhistory.enddate field)\n";
+    $dbh->do("ALTER TABLE `subscriptionhistory` CHANGE `enddate` `enddate` DATE NULL DEFAULT NULL ");
+    $dbh->do("UPDATE subscriptionhistory SET enddate=NULL WHERE enddate='0000-00-00'");
+    SetVersion ($DBversion);
+}
+
 =item DropAllForeignKeys($table)
 
   Drop all foreign keys of the table $table

@@ -27,6 +27,7 @@ use C4::Context;
 use C4::Circulation;
 use C4::Debug;
 use C4::Members;
+require C4::Auth;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 
@@ -36,21 +37,18 @@ BEGIN {
 	require Exporter;
 	@ISA    = qw(Exporter);
 	@EXPORT = qw(
-        &GetShelves &GetShelfContents &GetShelf
-		&GetRecentShelves &GetShelvesSummary
-
-        &AddToShelf &AddToShelfFromBiblio &AddShelf
-
-		&SetShelvesLimit
-		&RefreshShelvesSummary
-
-        &ModShelf
-        &ShelfPossibleAction
-        &DelFromShelf &DelShelf
+            &GetShelves &GetShelfContents &GetShelf
+            &AddToShelf &AddToShelfFromBiblio &AddShelf
+            &ModShelf
+            &ShelfPossibleAction
+            &DelFromShelf &DelShelf
 	);
+        @EXPORT_OK = qw(
+            &GetShelvesSummary &GetRecentShelves
+            &RefreshShelvesSummary &SetShelvesLimit
+        );
 }
 
-use C4::Auth qw(get_session);
 
 my $dbh = C4::Context->dbh;
 
@@ -546,7 +544,7 @@ This function is used in conjunction with the 'Lists' button in masthead.inc.
 sub RefreshShelvesSummary ($$$) {
 	
 	my ($sessionID, $loggedinuser, $row_count) = @_;
-	my $session = get_session($sessionID);
+	my $session = C4::Auth::get_session($sessionID);
 	my ($total, $totshelves, $barshelves, $pubshelves);
 
 	($barshelves, $totshelves) = GetRecentShelves(1, $row_count, $loggedinuser);

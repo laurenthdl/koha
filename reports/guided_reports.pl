@@ -22,6 +22,9 @@ use CGI;
 use C4::Reports;
 use C4::Auth;
 use C4::Output;
+use C4::Dates qw( DHTMLcalendar );
+use C4::Debug;
+
 =head1 NAME
 
 Script to control the guided report creation
@@ -172,6 +175,10 @@ elsif ( $phase eq 'Choose these criteria' ) {
     foreach my $crit (@criteria) {
         my $value = $input->param( $crit . "_value" );
         if ($value) {
+            if ($value =~ C4::Dates->regexp(C4::Context->preference('dateformat'))) { 
+                my $date = C4::Dates->new($value);
+                $value = $date->output("iso");
+            }
             $query_criteria .= " AND $crit='$value'";
         }
     }
@@ -181,7 +188,7 @@ elsif ( $phase eq 'Choose these criteria' ) {
         'area'           => $area,
         'type'           => $type,
         'column'         => $column,
-		'definition'     => $definition,
+        'definition'     => $definition,
         'criteriastring' => $query_criteria,
     );
 
@@ -239,7 +246,7 @@ elsif ( $phase eq 'Choose These Operations' ) {
         'column'         => $column,
         'criteriastring' => $criteria,
         'totals'         => $totals,
-		'definition'    => $definition,
+        'definition'    => $definition,
     );
 
     # get columns
@@ -324,29 +331,42 @@ elsif ( $phase eq 'Save Report' ) {
 	);
 }
 
-elsif ( $phase eq 'Execute' ) {
-	# run the sql, and output results in a template	
-    my $sql     = $input->param('sql');
-    my $type    = $input->param('type');
-    my $results = execute_query($sql,$type);
-    $template->param(
-        'results' => $results,
-		'sql' => $sql,
-        'execute' => 1
-    );
-}
+# This condition is not used currently
+#elsif ( $phase eq 'Execute' ) {
+#    # run the sql, and output results in a template	
+#    my $sql     = $input->param('sql');
+#    my $type    = $input->param('type');
+#    my $results = execute_query($sql, $type);
+#    $template->param(
+#        'results' => $results,
+#        'sql' => $sql,
+#        'execute' => 1,
+#    );
+#}
 
 elsif ($phase eq 'Run this report'){
     # execute a saved report
-	my $report = $input->param('reports');
-	my ($sql,$type,$name,$notes) = get_saved_report($report);
-	my $results = execute_query($sql,$type);
+    # FIXME: The default limit should not be hardcoded...
+    my $limit = 20;
+    my $offset;
+    my $report = $input->param('reports');
+    # offset algorithm
+    if ($input->param('page')) {
+        $offset = ($input->param('page') - 1) * 20;
+    } else {
+        $offset = 0;
+    }
+    my ($sql,$type,$name,$notes) = get_saved_report($report);
+    my ($results, $total) = execute_query($sql, $type, $offset, $limit);
+    my $totpages = int($total/$limit) + (($total % $limit) > 0 ? 1 : 0);
+    my $url = "/cgi-bin/koha/reports/guided_reports.pl?reports=$report&phase=Run%20this%20report";
     $template->param(
-        'results' => $results,
-		'sql' => $sql,
-        'execute' => 1,
-		'name' => $name,
-		'notes' => $notes,
+        'results'       => $results,
+        'sql'           => $sql,
+        'execute'       => 1,
+        'name'          => $name,
+        'notes'         => $notes,
+        'pagination_bar' => pagination_bar($url, $totpages, $input->param('page'), "page"),
     );
 }	
 
@@ -357,7 +377,7 @@ elsif ($phase eq 'Export'){
 	print $input->header(   -type => 'application/octet-stream',
 	          -attachment=>'reportresults.csv');
 	my $format=$input->param('format');
-	my $results = execute_query($sql,1,$format);
+	my $results = execute_query($sql,1,0,0,$format);
 	print $results;
 	
 }
@@ -389,7 +409,9 @@ elsif ($phase eq 'Save Compound'){
 }
 
 
-$template->param( 'referer' => $referer );
+$template->param(   'referer' => $referer,
+                    'DHTMLcalendar_dateformat' => C4::Dates->DHTMLcalendar(),
+                );
 
 
 if (!$no_html){
