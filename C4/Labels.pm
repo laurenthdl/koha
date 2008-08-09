@@ -29,7 +29,6 @@ use C4::Debug;
 use C4::Biblio;
 use Text::CSV_XS;
 use Data::Dumper;
-# use Smart::Comments;
 
 BEGIN {
 	$VERSION = 0.03;
@@ -80,7 +79,6 @@ Return a pointer on a hash list containing info from labels_conf table in Koha D
 
 =cut
 
-#'
 sub get_label_options {
     my $query2 = " SELECT * FROM labels_conf where active = 1";		# FIXME: exact same as get_active_layout
     my $sth    = C4::Context->dbh->prepare($query2);
@@ -89,8 +87,6 @@ sub get_label_options {
 }
 
 sub get_layouts {
-
-## FIXME: this if/else could be compacted...
     my $dbh = C4::Context->dbh;
     my @data;
     my $query = " Select * from labels_conf";
@@ -103,9 +99,6 @@ sub get_layouts {
         push( @resultsloop, $data );
     }
     $sth->finish;
-
-    # @resultsloop
-
     return @resultsloop;
 }
 
@@ -143,7 +136,7 @@ sub delete_layout {
 sub get_printingtypes {
     my ($layout_id) = @_;
     my @printtypes;
-# FIXME: hard coded print types
+# FIXME hard coded print types
     push( @printtypes, { code => 'BAR',    desc => "barcode only" } );
     push( @printtypes, { code => 'BIB',    desc => "biblio only" } );
     push( @printtypes, { code => 'BARBIB', desc => "barcode / biblio" } );
@@ -170,11 +163,7 @@ sub get_printingtypes {
 #
 sub build_text_dropbox {
     my ($order) = @_;
-
-    #  my @fields      = get_text_fields();
-    #    my $field_count = scalar @fields;
-    my $field_count = 10;    # <-----------       FIXME hard coded
-
+    my $field_count = 7;    # <-----------       FIXME hard coded
     my @lines;
     !$order
       ? push( @lines, { num => '', selected => '1' } )
@@ -184,102 +173,85 @@ sub build_text_dropbox {
         $line->{'selected'} = 1 if $i eq $order;
         push( @lines, $line );
     }
-
-    # add a blank row too
-
     return @lines;
 }
 
 sub get_text_fields {
-    my ($layout_id, $sorttype) = @_;
-	my @sorted_fields;
-	my $error;
+    my ( $layout_id, $sorttype ) = @_;
+    my @sorted_fields;
+    my $error;
     my $sortorder = get_layout($layout_id);
-	if(  $sortorder->{formatstring}) {
-		if(! $sorttype) {
-		return $sortorder->{formatstring} ;
-		} else {
-		   	my $csv = Text::CSV_XS->new( { allow_whitespace => 1 } ) ;
-			my $line= $sortorder->{formatstring}  ;
-		    my $status =  $csv->parse( $line );
-			@sorted_fields = map {{ 'code' => $_ , desc => $_ } } $csv->fields()  ;
-			$error = $csv->error_input();
-			warn $error if $error ;  # TODO - do more with this.
-		}
-	} else {
-    # These fields are hardcoded based on the template for label-edit-layout.pl
-		my @text_fields = (
-     	{
-        code  => 'itemtype',
-        desc  => "Item Type",
-        order => $sortorder->{'itemtype'}
-        },
-     	{
-        code  => 'dewey',
-        desc  => "Dewey",
-        order => $sortorder->{'dewey'}
-        },
-     	{
-        code => 'issn',
-        desc => "ISSN", 
-        order => $sortorder->{'issn'}
-        },
-     	{
-        code => 'isbn',
-        desc => "ISBN", 
-        order => $sortorder->{'isbn'}
-        },
-    	{
-        code  => 'class',
-        desc  => "Classification",
-        order => $sortorder->{'class'}
-        },
-    	{
-        code  => 'subclass',
-        desc  => "Sub-Class",
-        order => $sortorder->{'subclass'}
-        },
-    	{
-        code  => 'barcode',
-        desc  => "Barcode",
-        order => $sortorder->{'barcode'}
-        },
-    	{
-        code => 'author',
-        desc => "Author",
-        order => $sortorder->{'author'}
-        },
-    	{
-        code => 'title',
-        desc => "Title",
-        order => $sortorder->{'title'}
-        },
-    	{
-        code => 'itemcallnumber',
-        desc => "Call Number",
-        order => $sortorder->{'itemcallnumber'}
-        },
-    	{
-        code => 'subtitle',
-        desc => "Subtitle",
-        order => $sortorder->{'subtitle'}
+    if ( $sortorder->{formatstring} ) {
+        if ( !$sorttype ) {
+            return $sortorder->{formatstring};
         }
-		);
-    
-
-    	my @new_fields;
-    	foreach my $field (@text_fields) {
-    	    push( @new_fields, $field ) if $field->{'order'} > 0;
-    	}
-	
-     @sorted_fields = sort {  $$a{order} <=> $$b{order} } @new_fields;
+        else {
+            my $csv    = Text::CSV_XS->new( { allow_whitespace => 1 } );
+            my $line   = $sortorder->{formatstring};
+            my $status = $csv->parse($line);
+            @sorted_fields =
+              map { { 'code' => $_, desc => $_ } } $csv->fields();
+            $error = $csv->error_input();
+            warn $error if $error;    # TODO - do more with this.
+        }
     }
-	# if we have a 'formatstring', then we ignore these hardcoded fields.
+    else {
+
+     # These fields are hardcoded based on the template for label-edit-layout.pl
+        my @text_fields = (
+            {
+                code  => 'itemtype',
+                desc  => "Item Type",
+                order => $sortorder->{'itemtype'}
+            },
+            {
+                code  => 'issn',
+                desc  => "ISSN",
+                order => $sortorder->{'issn'}
+            },
+            {
+                code  => 'isbn',
+                desc  => "ISBN",
+                order => $sortorder->{'isbn'}
+            },
+            {
+                code  => 'barcode',
+                desc  => "Barcode",
+                order => $sortorder->{'barcode'}
+            },
+            {
+                code  => 'author',
+                desc  => "Author",
+                order => $sortorder->{'author'}
+            },
+            {
+                code  => 'title',
+                desc  => "Title",
+                order => $sortorder->{'title'}
+            },
+            {
+                code  => 'itemcallnumber',
+                desc  => "Call Number",
+                order => $sortorder->{'itemcallnumber'}
+            },
+        );
+
+        my @new_fields = ();
+        foreach my $field (@text_fields) {
+            push( @new_fields, $field ) if $field->{'order'} > 0;
+        }
+
+        @sorted_fields = sort { $$a{order} <=> $$b{order} } @new_fields;
+    }
+
+    # if we have a 'formatstring', then we ignore these hardcoded fields.
     my $active_fields;
 
-    if ($sorttype eq 'codes') { # FIXME: This sub should really always return the array of hashrefs and let the caller take what he wants from that -fbcit
+    if ( $sorttype eq 'codes' )
+    { # FIXME: This sub should really always return the array of hashrefs and let the caller take what he wants from that -fbcit
         return @sorted_fields;
-    } else {
+    }
+    else {
         foreach my $field (@sorted_fields) {
             $active_fields .= "$field->{'desc'} ";
         }
@@ -296,6 +268,7 @@ sub get_text_fields {
  else, return the next available batch_id.
 =return
 =cut
+
 sub add_batch ($;$) {
 	my $table = (@_ and 'patroncards' eq shift) ? 'patroncards' : 'labels';
     my $batch_list = (@_) ? shift : undef;
@@ -752,15 +725,15 @@ sub SetAssociatedProfile {
     $sth->finish;
 }
 
+
 =item GetLabelItems;
 
         $options = GetLabelItems()
 
-Returns an array of references-to-hash, whos keys are the field from the biblio, biblioitems, items and labels tables in the Koha database.
+Returns an array of references-to-hash, whos keys are the fields from the biblio, biblioitems, items and labels tables in the Koha database.
 
 =cut
 
-#'
 sub GetLabelItems {
     my ($batch_id) = @_;
     my $dbh = C4::Context->dbh;
@@ -769,16 +742,20 @@ sub GetLabelItems {
     my $count;
     my @data;
     my $sth;
-
+    
     if ($batch_id) {
-        my $query3 = "Select * from labels where batch_id = ? order by labelid ";
+        my $query3 = "
+            SELECT *
+            FROM labels
+            WHERE batch_id = ?
+            ORDER BY labelid";
         $sth = $dbh->prepare($query3);
         $sth->execute($batch_id);
-
     }
     else {
-
-        my $query3 = "Select * from labels";
+        my $query3 = "
+            SELECT *
+            FROM labels";
         $sth = $dbh->prepare($query3);
         $sth->execute();
     }
@@ -787,20 +764,21 @@ sub GetLabelItems {
     while ( my $data = $sth->fetchrow_hashref ) {
 
         # lets get some summary info from each item
-        my $query1 = " 
-	 select i.*, bi.*, b.*  from items i,biblioitems bi,biblio b 
-		where itemnumber=? and  i.biblioitemnumber=bi.biblioitemnumber and                  
-		bi.biblionumber=b.biblionumber"; 
-     
-	 	my $sth1 = $dbh->prepare($query1);
+        my $query1 =
+#            FIXME This makes for a very bulky data structure; data from tables w/duplicate col names also gets overwritten.
+#            Something like this, perhaps, but this also causes problems because we need more fields sometimes.
+#            SELECT i.barcode, i.itemcallnumber, i.itype, bi.isbn, bi.issn, b.title, b.author
+           "SELECT bi.*, i.*, b.*
+            FROM items AS i, biblioitems AS bi ,biblio AS b
+            WHERE itemnumber=? AND i.biblioitemnumber=bi.biblioitemnumber AND bi.biblionumber=b.biblionumber";
+        my $sth1 = $dbh->prepare($query1);
         $sth1->execute( $data->{'itemnumber'} );
 
         my $data1 = $sth1->fetchrow_hashref();
         $data1->{'labelno'}  = $i1;
         $data1->{'labelid'}  = $data->{'labelid'};
         $data1->{'batch_id'} = $batch_id;
-        $data1->{'summary'} =
-          "$data1->{'barcode'}, $data1->{'title'}, $data1->{'isbn'}";
+        $data1->{'summary'} = "$data1->{'barcode'}, $data1->{'title'}, $data1->{'isbn'}";
 
         push( @resultsloop, $data1 );
         $sth1->finish;
@@ -814,10 +792,10 @@ sub GetLabelItems {
 
 sub GetItemFields {
     my @fields = qw (
-      barcode title subtitle
-      dewey isbn issn author class
-      itemtype subclass itemcallnumber
-
+      barcode           title
+      isbn              issn
+      author            itemtype
+      itemcallnumber
     );
     return @fields;
 }
@@ -832,27 +810,43 @@ and return string from koha tables or MARC record.
 =cut
 #'
 sub GetBarcodeData {
-	my ($f,$item,$record) = @_;
-	my $kohatables= &_descKohaTables();
-	my $datastring;
-	my $last_f = $f;
-	my $match_kohatable = join('|', (@{$kohatables->{biblio}},@{$kohatables->{biblioitems}},@{$kohatables->{items}}) );
-	while( $f ) {
-		if( $f =~ /^'(.*)'.*/ ) {
-			# single quotes indicate a static text string.
-			$datastring .= $1 ;
-			$f = $';
-		} elsif ( $f =~ /^($match_kohatable).*/ ) { 
-			# grep /$f/, (@$kohatables->{biblio},@$kohatables->{biblioitems},@$kohatables->{items}) ) {
-			$datastring .= $item->{$f};
-			$f = $';
-		} elsif ( $f =~ /^([0-9a-z]{3})(\w)(\W*).*/ ) {
-			$datastring .= $record->subfield($1,$2) . $3 if($record->subfield($1,$2)) ;
-			$f = $';
-		} 
-		last if ( $f eq $last_f ); # failed to match
-	}
-	return $datastring;
+    my ( $f, $item, $record ) = @_;
+    my $kohatables = &_descKohaTables();
+    my $datastring = '';
+    my $match_kohatable = join(
+        '|',
+        (
+            @{ $kohatables->{biblio} },
+            @{ $kohatables->{biblioitems} },
+            @{ $kohatables->{items} }
+        )
+    );
+    while ($f) {
+        $f =~ s/^\s?//;
+        if ( $f =~ /^'(.*)'.*/ ) {
+            # single quotes indicate a static text string.
+            $datastring .= $1;
+            $f = $';
+        }
+        elsif ( $f =~ /^($match_kohatable).*/ ) {
+            $datastring .= $item->{$f};
+            $f = $';
+        }
+        elsif ( $f =~ /^([0-9a-z]{3})(\w)(\W?).*?/ ) {
+            my $marc_field = $1;
+            foreach my $subfield ($record->field($marc_field)) {
+                if ( $subfield->subfield('9') eq $item->{'itemnumber'} ) {
+                    $datastring .= $subfield->subfield($2 ) . $3;
+                    last;
+                }
+            }
+            $f = $';
+        }
+        else {
+            last;    # Failed to match
+        }
+    }
+    return $datastring;
 }
 
 =head descKohaTables
@@ -936,21 +930,77 @@ sub deduplicate_batch {
 	return $killed, undef;
 }
 
+sub split_lccn {
+    my ($lccn) = @_;    
+    my ($ll, $wnl, $dec, $cutter, $pubdate) = (0, 0, 0, 0, 0);
+    $_ = $lccn;
+    # lccn example 'HE8700.7 .P6T44 1983';
+    my    @splits   = m/
+        (^[a-zA-Z]+)            # HE
+        ([0-9]+\.*[0-9]*)             # 8700.7
+        \s*
+        (\.*[a-zA-Z0-9]*)       # P6T44
+        \s*
+        ([0-9]*)                # 1983
+        /x;  
+
+    # strip something occuring spaces too
+    $splits[0] =~ s/\s+$//;
+    $splits[1] =~ s/\s+$//;
+    $splits[2] =~ s/\s+$//;
+
+    return @splits;
+}
+
+sub split_ddcn {
+    my ($ddcn) = @_;
+    $ddcn =~ s/\///g;   # in theory we should be able to simply remove all segmentation markers and arrive at the correct call number...
+    $_ = $ddcn;
+    # ddcn example R220.3 H2793Z H32 c.2
+    my @splits = m/^([A-Z]{0,3})                # R (OS, REF, etc. up do three letters)
+                    ([0-9]+\.[0-9]*)            # 220.3
+                    \s?                         # space (not requiring anything beyond the call number)
+                    ([a-zA-Z0-9]*\.?[a-zA-Z0-9])# cutter number... maybe, but if so it is in this position (Z indicates literary criticism)
+                    \s?                         # space if it exists
+                    ([a-zA-Z]*\.?[0-9]*)        # other indicators such as cutter for author of literary criticism in this example if it exists
+                    \s?                         # space if ie exists
+                    ([a-zA-Z]*\.?[0-9]*)        # other indicators such as volume number, copy number, edition date, etc. if it exists
+                    /x;
+    return @splits;
+}
+
+sub split_fcn {
+    my ($fcn) = @_;
+    my @fcn_split = ();
+    # Split fiction call numbers based on spaces
+    SPLIT_FCN:
+    while ($fcn) {
+        if ($fcn =~ m/([A-Za-z0-9]+)(\W?).*?/x) {
+            push (@fcn_split, $1);
+            $fcn = $';
+        }
+        else {
+            last SPLIT_FCN;     # No match, break out of the loop
+        }
+    }
+    return @fcn_split;
+}
+
 sub DrawSpineText {
 
     my ( $x_pos, $y_pos, $label_height, $label_width, $fontname, $fontsize, $left_text_margin,
-        $text_wrap_cols, $item, $conf_data, $printingtype, $nowrap ) = @_;
-
+        $text_wrap_cols, $item, $conf_data, $printingtype ) = @_;
+    
     # Replaced item's itemtype with the more user-friendly description...
     my $dbh = C4::Context->dbh;
-    my %itemtypes;
     my $sth = $dbh->prepare("SELECT itemtype,description FROM itemtypes");
     $sth->execute();
     while ( my $data = $sth->fetchrow_hashref ) {
         $$item->{'itemtype'} = $data->{'description'} if ($$item->{'itemtype'} eq $data->{'itemtype'});
+        $$item->{'itype'} = $data->{'description'} if ($$item->{'itype'} eq $data->{'itemtype'});
     }
 
-    my $str;
+    my $str = '';
 
     my $top_text_margin = ( $fontsize + 3 );    #FIXME: This should be a template parameter and passed in...
     my $line_spacer = ( $fontsize * 1 );    # number of pixels between text rows (This is actually leading: baseline to baseline minus font size. Recommended starting point is 20% of font size.).
@@ -960,26 +1010,33 @@ sub DrawSpineText {
     my $vPos = ( $y_pos + ( $label_height - $top_text_margin ) );
 
     my @str_fields = get_text_fields($layout_id, 'codes' );
-	my $record = GetMarcBiblio($$item->{biblionumber});
-	# FIXME - returns all items, so you can't get data from an embedded holdings field.
-	# TODO - add a GetMarcBiblio1item(bibnum,itemnum) or a GetMarcItem(itemnum).
+    my $record = GetMarcBiblio($$item->{biblionumber});
+    # FIXME - returns all items, so you can't get data from an embedded holdings field.
+    # TODO - add a GetMarcBiblio1item(bibnum,itemnum) or a GetMarcItem(itemnum).
 
     my $old_fontname = $fontname; # We need to keep track of the original font passed in...
-    
-    for my $field (@str_fields) {
-		$field->{'code'} or warn "get_text_fields($layout_id, 'codes') element missing 'code' field";
-		if ($$conf_data->{'formatstring'}) {
-			$field->{'data'} =  GetBarcodeData($field->{'code'},$$item,$record) ;
-		} else {
-			$field->{data} =   $$item->{$field->{'code'}}  ;
-		}
 
+    # Grab the cn_source and if that is NULL, the DefaultClassificationSource syspref
+    my $cn_source = ($$item->{'cn_source'} ? $$item->{'cn_source'} : C4::Context->preference('DefaultClassificationSource'));
+
+    for my $field (@str_fields) {
+        $field->{'code'} or warn "get_text_fields($layout_id, 'codes') element missing 'code' field";
+        if ($$conf_data->{'formatstring'}) {
+            $field->{'data'} =  GetBarcodeData($field->{'code'},$$item,$record) ;
+        }
+        elsif ($field->{'code'} eq 'itemtype') {
+            $field->{'data'} = C4::Context->preference('item-level_itypes') ? $$item->{'itype'} : $$item->{'itemtype'};
+        }
+        else {
+            $field->{data} =   $$item->{$field->{'code'}}  ;
+        }
         # This allows us to print the title in italic (oblique) type... (Times Roman has a different nomenclature.)
         # It seems there should be a better way to handle fonts in the label/patron card tool altogether -fbcit
         ($field->{code} eq 'title') ? (($old_fontname =~ /T/) ? ($fontname = 'TI') : ($fontname = ($old_fontname . 'O'))) : ($fontname = $old_fontname);
         my $font = prFont($fontname);
         # if the display option for this field is selected in the DB,
         # and the item record has some values for this field, display it.
+        # Or if there is a csv list of fields to display, display them.
         if ( ($$conf_data->{'formatstring'}) || ( $$conf_data->{$field->{code}} && $$item->{$field->{code}} ) ) {
             # get the string
             my $str = $field->{data} ;
@@ -987,16 +1044,19 @@ sub DrawSpineText {
             $str =~ s/\n//g;
             $str =~ s/\r//g;
             my @strings;
-            if ($field->{code} eq 'itemcallnumber') { # If the field contains the call number, we do some special processing on it here...
-                if (($nowrap == 0) || (!$nowrap)) { # wrap lines based on segmentation markers: '/' (other types of segmentation markers can be added as needed here or this could be added as a syspref.)
-                    while ( $str =~ /\// ) {
-                        $str =~ /^(.*)\/(.*)$/;
-                        unshift @strings, $2;
-                        $str = $1;
-                    }   
-                    unshift @strings, $str;
+            my @callnumber_list = ('itemcallnumber', '050a', '050b', '082a', '952o'); # Fields which hold call number data
+            if ((grep {$field->{code} =~ m/$_/} @callnumber_list) and ($printingtype eq 'BIB')) { # If the field contains the call number, we do some sp
+                if ($cn_source eq 'lcc') {
+                    @strings = split_lccn($str);
+                    @strings = split_fcn($str) if !@strings;    # If it was not a true lccn, try it as a fiction call number
+                    push (@strings, $str) if !@strings;         # If it was not that, send it on unsplit
+                } elsif ($cn_source eq 'ddc') {
+                    @strings = split_ddcn($str);
+                    @strings = split_fcn($str) if !@strings;
+                    push (@strings, $str) if !@strings;
                 } else {
-                    push @strings, $str;    # if $nowrap == 1 do not wrap or remove segmentation markers...
+                    # FIXME Need error trapping here; something to be informative to the user perhaps -crn
+                    push @strings, $str;
                 }
             } else {
                 $str =~ s/\/$//g;       # Here we will strip out all trailing '/' in fields other than the call number...
@@ -1019,7 +1079,7 @@ sub DrawSpineText {
             }
             # loop for each string line
             foreach my $str (@strings) {
-                my $hPos;
+                my $hPos = 0;
                 if ( $printingtype eq 'BIB' ) { #FIXME: This is a hack and needs to be implimented as a text justification option in the template...
                     # some code to try and center each line on the label based on font size and string point width...
                     my $stringwidth = prStrWidth($str, $fontname, $fontsize);
@@ -1032,8 +1092,8 @@ sub DrawSpineText {
                 PrintText( $hPos, $vPos, $font, $fontsize, $str );
                 $vPos = $vPos - $line_spacer;
             }
-    	} 
-	}	#foreach field
+    	}
+    }	#foreach field
 }
 
 sub PrintText {
@@ -1053,7 +1113,7 @@ sub DrawPatronCardText {
     my $vPos   = ( $y_pos + ( $label_height - $top_text_margin ) );
     my $font = prFont($fontname);
 
-    my $hPos;
+    my $hPos = 0;
 
     foreach my $line (keys %$text) {
         $debug and warn "Current text is \"$line\" and font size for \"$line\" is $text->{$line} points";
@@ -1084,10 +1144,10 @@ sub DrawBarcode {
     my ( $x_pos, $y_pos, $height, $width, $barcode, $barcodetype ) = @_;
     my $num_of_bars = length($barcode);
     my $bar_width   = $width * .8;        # %80 of length of label width
-    my $tot_bar_length;
-    my $bar_length;
+    my $tot_bar_length = 0;
+    my $bar_length = 0;
     my $guard_length = 10;
-    my $xsize_ratio;
+    my $xsize_ratio = 0;
 
     if ( $barcodetype eq 'CODE39' ) {
         $bar_length = '17.5';
