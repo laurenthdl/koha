@@ -509,8 +509,8 @@ sub add_layout {
 
     my (
         $barcodetype,  $title,         	$subtitle, 	$isbn,       $issn,
-        $itemtype,     $bcn,            $dcn,        $classif,
-        $subclass,     $itemcallnumber, $author,     $tmpl_id,
+        $itemtype,     $bcn,            $text_justify,        $callnum_split,
+        $itemcallnumber, $author,     $tmpl_id,
         $printingtype, $guidebox,       $startlabel, $layoutname, $formatstring
     ) = @_;
 
@@ -520,15 +520,15 @@ sub add_layout {
     $sth2->execute();
     $query2 = "INSERT INTO labels_conf
             ( barcodetype, title, subtitle, isbn,issn, itemtype, barcode,
-              dewey, classification, subclass, itemcallnumber, author, printingtype,
+              text_justify, callnum_split, itemcallnumber, author, printingtype,
                 guidebox, startlabel, layoutname, formatstring, active )
-               values ( ?, ?,?, ?, ?, ?, ?, ?,  ?,?, ?, ?, ?, ?, ?,?,?, 1 )";
+               values ( ?, ?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?, 1 )";
     $sth2 = $dbh->prepare($query2);
     $sth2->execute(
         $barcodetype, $title, $subtitle, $isbn, $issn,
 
-        $itemtype, $bcn,            $dcn,    $classif,
-        $subclass, $itemcallnumber, $author, $printingtype,
+        $itemtype, $bcn,            $text_justify,    $callnum_split,
+        $itemcallnumber, $author, $printingtype,
         $guidebox, $startlabel,     $layoutname, $formatstring
     );
     $sth2->finish;
@@ -541,8 +541,8 @@ sub save_layout {
 
     my (
         $barcodetype,  $title,          $subtitle,	$isbn,       $issn,
-        $itemtype,     $bcn,            $dcn,        $classif,
-        $subclass,     $itemcallnumber, $author,     $tmpl_id,
+        $itemtype,     $bcn,            $text_justify,        $callnum_split,
+        $itemcallnumber, $author,     $tmpl_id,
         $printingtype, $guidebox,       $startlabel, $layoutname, $formatstring,
         $layout_id
     ) = @_;
@@ -552,14 +552,14 @@ sub save_layout {
     my $dbh    = C4::Context->dbh;
     my $query2 = "update labels_conf set 
              barcodetype=?, title=?, subtitle=?, isbn=?,issn=?, 
-            itemtype=?, barcode=?,    dewey=?, classification=?,
-             subclass=?, itemcallnumber=?, author=?,  printingtype=?,  
+            itemtype=?, barcode=?,    text_justify=?, callnum_split=?,
+            itemcallnumber=?, author=?,  printingtype=?,  
                guidebox=?, startlabel=?, layoutname=?, formatstring=? where id = ?";
     my $sth2 = $dbh->prepare($query2);
     $sth2->execute(
         $barcodetype, $title,          $subtitle,	$isbn,       $issn,
-        $itemtype,    $bcn,            $dcn,        $classif,
-        $subclass,    $itemcallnumber, $author,     $printingtype,
+        $itemtype,    $bcn,            $text_justify,        $callnum_split,
+        $itemcallnumber, $author,     $printingtype,
         $guidebox,    $startlabel,     $layoutname, $formatstring,  $layout_id
     );
     $sth2->finish;
@@ -821,7 +821,7 @@ sub GetBarcodeData {
             @{ $kohatables->{items} }
         )
     );
-    while ($f) {
+    while ($f) {  
         $f =~ s/^\s?//;
         if ( $f =~ /^'(.*)'.*/ ) {
             # single quotes indicate a static text string.
@@ -833,16 +833,26 @@ sub GetBarcodeData {
             $f = $';
         }
         elsif ( $f =~ /^([0-9a-z]{3})(\w)(\W?).*?/ ) {
-            my $marc_field = $1;
-            foreach my $subfield ($record->field($marc_field)) {
-                if ( $subfield->subfield('9') eq $item->{'itemnumber'} ) {
-                    $datastring .= $subfield->subfield($2 ) . $3;
-                    last;
+            my ($field,$subf,$ws) = ($1,$2,$3);
+            my $subf_data;
+            my ($itemtag, $itemsubfieldcode) = &GetMarcFromKohaField("items.itemnumber",'');
+            my @marcfield = $record->field($field);
+            if(@marcfield) {
+                if($field eq $itemtag) {  # item-level data, we need to get the right item.
+                    foreach my $itemfield (@marcfield) {
+                        if ( $itemfield->subfield($itemsubfieldcode) eq $item->{'itemnumber'} ) {
+                            $datastring .= $itemfield->subfield($subf ) . $ws;
+                            last;
+                        }
+                    }
+                } else {  # bib-level data, we'll take the first matching tag/subfield.
+                    $datastring .= $marcfield[0]->subfield($subf) . $ws ;
                 }
             }
             $f = $';
         }
         else {
+            warn "failed to parse label formatstring: $f";
             last;    # Failed to match
         }
     }
@@ -1009,7 +1019,7 @@ sub DrawSpineText {
 
     my $vPos = ( $y_pos + ( $label_height - $top_text_margin ) );
 
-    my @str_fields = get_text_fields($layout_id, 'codes' );
+    my @str_fields = get_text_fields($layout_id, 'codes' );  
     my $record = GetMarcBiblio($$item->{biblionumber});
     # FIXME - returns all items, so you can't get data from an embedded holdings field.
     # TODO - add a GetMarcBiblio1item(bibnum,itemnum) or a GetMarcItem(itemnum).
@@ -1018,14 +1028,14 @@ sub DrawSpineText {
 
     # Grab the cn_source and if that is NULL, the DefaultClassificationSource syspref
     my $cn_source = ($$item->{'cn_source'} ? $$item->{'cn_source'} : C4::Context->preference('DefaultClassificationSource'));
-
     for my $field (@str_fields) {
         $field->{'code'} or warn "get_text_fields($layout_id, 'codes') element missing 'code' field";
-        if ($$conf_data->{'formatstring'}) {
-            $field->{'data'} =  GetBarcodeData($field->{'code'},$$item,$record) ;
-        }
-        elsif ($field->{'code'} eq 'itemtype') {
+        if ($field->{'code'} eq 'itemtype') {
             $field->{'data'} = C4::Context->preference('item-level_itypes') ? $$item->{'itype'} : $$item->{'itemtype'};
+        }
+        elsif ($$conf_data->{'formatstring'}) {
+            # if labels_conf.formatstring has a value, then it overrides the  hardcoded option.
+            $field->{'data'} =  GetBarcodeData($field->{'code'},$$item,$record) ;
         }
         else {
             $field->{data} =   $$item->{$field->{'code'}}  ;
@@ -1044,8 +1054,8 @@ sub DrawSpineText {
             $str =~ s/\n//g;
             $str =~ s/\r//g;
             my @strings;
-            my @callnumber_list = ('itemcallnumber', '050a', '050b', '082a', '952o'); # Fields which hold call number data
-            if ((grep {$field->{code} =~ m/$_/} @callnumber_list) and ($printingtype eq 'BIB')) { # If the field contains the call number, we do some sp
+            my @callnumber_list = ('itemcallnumber', '050a', '050b', '082a', '952o'); # Fields which hold call number data  ( 060? 090? 092? 099? )
+            if ((grep {$field->{code} =~ m/$_/} @callnumber_list) and ($printingtype eq 'BIB') and ($$conf_data->{'callnum_split'})) { # If the field contains the call number, we do some sp
                 if ($cn_source eq 'lcc') {
                     @strings = split_lccn($str);
                     @strings = split_fcn($str) if !@strings;    # If it was not a true lccn, try it as a fiction call number
@@ -1080,12 +1090,14 @@ sub DrawSpineText {
             # loop for each string line
             foreach my $str (@strings) {
                 my $hPos = 0;
-                if ( $printingtype eq 'BIB' ) { #FIXME: This is a hack and needs to be implimented as a text justification option in the template...
-                    # some code to try and center each line on the label based on font size and string point width...
-                    my $stringwidth = prStrWidth($str, $fontname, $fontsize);
-                    my $whitespace = ( $label_width - ( $stringwidth + (2 * $left_text_margin) ) );
-                    $hPos = ( ( $whitespace  / 2 ) + $x_pos + $left_text_margin );
-                    #warn "\$label_width=$label_width \$stringwidth=$stringwidth \$whitespace=$whitespace \$left_text_margin=$left_text_margin for $str\n";
+                my $stringwidth = prStrWidth($str, $fontname, $fontsize);
+                if ( $$conf_data->{'text_justify'} eq 'R' ) { 
+                    $hPos = $x_pos + $label_width - ( $left_text_margin + $stringwidth );
+                } elsif($$conf_data->{'text_justify'} eq 'C') {
+                     # some code to try and center each line on the label based on font size and string point width...
+                     my $whitespace = ( $label_width - ( $stringwidth + (2 * $left_text_margin) ) );
+                     $hPos = ( ( $whitespace  / 2 ) + $x_pos + $left_text_margin );
+                #warn "\$label_width=$label_width \$stringwidth=$stringwidth \$whitespace=$whitespace \$left_text_margin=$left_text_margin for $str\n";
                 } else {
                     $hPos = ( $x_pos + $left_text_margin );
                 }
