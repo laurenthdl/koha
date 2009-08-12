@@ -2567,6 +2567,13 @@ if (C4::Context->preference("Version") < TransformToNum($DBversion)) {
     print " Upgrade to $DBversion done (bug 2611: fix spelling/capitalization in permission flag descriptions)\n";
 }
 
+$DBversion = '3.01.00.042';
+if (C4::Context->preference("Version") < TransformToNum($DBversion)) {    
+    $dbh->do("INSERT INTO systempreferences (variable,value,options,explanation,type)VALUES('SortByLoggedInBranch', '0', '', 'Default sort order of tables should be by logged in branch first.', 'YesNo')");
+    SetVersion ($DBversion);
+    print "Upgrade to $DBversion done (added SortByLoggedInBranch sysprefs)\n";
+}
+
 =item DropAllForeignKeys($table)
 
   Drop all foreign keys of the table $table
