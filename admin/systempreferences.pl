@@ -149,6 +149,7 @@ $tabsysprefs{globalDueDate}                  = "Circulation";
 $tabsysprefs{holdCancelLength}               = "Circulation";
 $tabsysprefs{itemBarcodeInputFilter}         = "Circulation";
 $tabsysprefs{WebBasedSelfCheck}              = "Circulation";
+$tabsysprefs{ShowPatronImageInWebBasedSelfCheck} = "Circulation";
 $tabsysprefs{CircControl}                    = "Circulation";
 $tabsysprefs{finesCalendar}                  = "Circulation";
 $tabsysprefs{previousIssuesDefaultSortOrder} = "Circulation";
@@ -170,6 +171,7 @@ $tabsysprefs{InProcessingToShelvingCart}     = "Circulation";
 $tabsysprefs{NewItemsDefaultLocation}        = "Circulation";
 $tabsysprefs{ReturnToShelvingCart}           = "Circulation";
 $tabsysprefs{DisplayClearScreenButton}       = "Circulation";
+$tabsysprefs{AllowAllMessageDeletion}        = "Circulation";
 
 # Staff Client
 $tabsysprefs{TemplateEncoding}        = "StaffClient";
@@ -315,9 +317,13 @@ $tabsysprefs{OPACUserCSS}                = "OPAC";
 $tabsysprefs{OPACHighlightedWords}       = "OPAC";
 $tabsysprefs{OPACViewOthersSuggestions}  = "OPAC";
 $tabsysprefs{URLLinkText}                = "OPAC";
+$tabsysprefs{OPACSearchForTitleIn}       = "OPAC";
 $tabsysprefs{OPACShelfBrowser}           = "OPAC";
 $tabsysprefs{OPACDisplayRequestPriority} = "OPAC";
 $tabsysprefs{OPACAllowHoldDateInFuture}  = "OPAC";
+$tabsysprefs{OPACPatronDetails}  = "OPAC";
+$tabsysprefs{OPACFinesTab}  = "OPAC";
+$tabsysprefs{DisplayOPACiconsXSLT}	 = "OPAC";
 
 # OPAC
 $tabsysprefs{SearchMyLibraryFirst} = "OPAC";

@@ -114,6 +114,19 @@ BEGIN {
 	);
 }
 
+eval {
+    my $servers = C4::Context->config('memcached_servers');
+    if ($servers) {
+        require Memoize::Memcached;
+        import Memoize::Memcached qw(memoize_memcached);
+
+        my $memcached = {
+            servers    => [ $servers ],
+            key_prefix => C4::Context->config('memcached_namespace') || 'koha',
+        };
+        memoize_memcached('GetMarcStructure', memcached => $memcached, expire_time => 600); #cache for 10 minutes
+    }
+};
 =head1 NAME
 
 C4::Biblio - cataloging management functions
@@ -1662,10 +1675,10 @@ sub TransformHtmlToXml {
                 if (   ( @$tags[$i] && @$tags[$i] > 10 )
                     && ( @$values[$i] ne "" ) )
                 {
-                    my $ind1 = substr( @$indicator[$j], 0, 1 );
+                    my $ind1 = _default_ind_to_space(substr( @$indicator[$j], 0, 1 ));
                     my $ind2;
                     if ( @$indicator[$j] ) {
-                        $ind2 = substr( @$indicator[$j], 1, 1 );
+                        $ind2 = _default_ind_to_space(substr( @$indicator[$j], 1, 1 ));
                     }
                     else {
                         warn "Indicator in @$tags[$i] is empty";
@@ -1694,10 +1707,8 @@ sub TransformHtmlToXml {
                         $first = 1;
                     }
                     else {
-                        my $ind1 = substr( @$indicator[$j], 0, 1 );
-                        my $ind2 = substr( @$indicator[$j], 1, 1 );
-                        $ind1 = " " if !defined($ind2) or $ind2 eq "";
-                        $ind2 = " " if !defined($ind2) or $ind2 eq "";
+                        my $ind1 = _default_ind_to_space( substr( @$indicator[$j], 0, 1 ) );
+                        my $ind2 = _default_ind_to_space( substr( @$indicator[$j], 1, 1 ) );
                         $xml .= "<datafield tag=\"@$tags[$i]\" ind1=\"$ind1\" ind2=\"$ind2\">\n";
                         $xml .= "<subfield code=\"@$subfields[$i]\">@$values[$i]</subfield>\n";
                         $first = 0;
@@ -1710,10 +1721,8 @@ sub TransformHtmlToXml {
             }
             else {
                 if ($first) {
-                    my $ind1 = substr( @$indicator[$j], 0, 1 );
-                    my $ind2 = substr( @$indicator[$j], 1, 1 );
-                    $ind1 = " " if !defined($ind2) or $ind2 eq "";
-                    $ind2 = " " if !defined($ind2) or $ind2 eq "";
+                    my $ind1 = _default_ind_to_space( substr( @$indicator[$j], 0, 1 ) );
+                    my $ind2 = _default_ind_to_space( substr( @$indicator[$j], 1, 1 ) );
                     $xml .= "<datafield tag=\"@$tags[$i]\" ind1=\"$ind1\" ind2=\"$ind2\">\n";
                     $first = 0;
                 }
@@ -1738,6 +1747,21 @@ sub TransformHtmlToXml {
     $xml .= "</record>\n";
     $xml .= MARC::File::XML::footer();
     return $xml;
+}
+
+=head2 _default_ind_to_space
+
+Passed what should be an indicator returns a space
+if its undefined or zero length
+
+=cut
+
+sub _default_ind_to_space {
+    my $s = shift;
+    if (!defined $s || $s eq q{}) {
+        return ' ';
+    }
+    return $s;
 }
 
 =head2 TransformHtmlToMarc
@@ -1812,8 +1836,8 @@ sub TransformHtmlToMarc {
         elsif ($param =~ /^tag_(\d*)_indicator1_/){ # new field start when having 'input name="..._indicator1_..."
             my $tag  = $1;
             
-            my $ind1 = substr($cgi->param($param),0,1);
-            my $ind2 = substr($cgi->param($params->[$i+1]),0,1);
+            my $ind1 = _default_ind_to_space(substr($cgi->param($param),          0, 1));
+            my $ind2 = _default_ind_to_space(substr($cgi->param($params->[$i+1]), 0, 1));
             $newfield=0;
             my $j=$i+2;
             
@@ -1842,8 +1866,8 @@ sub TransformHtmlToMarc {
                         if ( $cgi->param($params->[$j+1]) ne '' ) { # creating only if there is a value (code => value)
                             $newfield = MARC::Field->new(
                                 $tag,
-                                ''.$ind1,
-                                ''.$ind2,
+                                $ind1,
+                                $ind2,
                                 $cgi->param($inner_param) => $cgi->param($params->[$j+1]),
                             );
                         }
@@ -2656,7 +2680,8 @@ sub _AddBiblioNoZebra {
                 foreach (split / /,$line) {
                     next unless $_; # skip  empty values (multiple spaces)
                     # if the entry is already here, improve weight
-                    if ($result{'__RAW__'}->{"$_"} =~ /$biblionumber,\Q$title\E\-(\d+);/) { 
+                    my $tmpstr = $result{'__RAW__'}->{"$_"} || "";
+                    if ($tmpstr =~ /$biblionumber,\Q$title\E\-(\d+);/) {
                         my $weight=$1+1;
                         $result{'__RAW__'}->{"$_"} =~ s/$biblionumber,\Q$title\E\-(\d+);//;
                         $result{'__RAW__'}->{"$_"} .= "$biblionumber,$title-$weight;";
@@ -2667,7 +2692,7 @@ sub _AddBiblioNoZebra {
                         # it exists
                         if ($existing_biblionumbers) {
                             $result{'__RAW__'}->{"$_"} =$existing_biblionumbers;
-                            my $weight=$1+1;
+                            my $weight = ($1 ? $1 : 0) + 1;
                             $result{'__RAW__'}->{"$_"} =~ s/$biblionumber,\Q$title\E\-(\d+);//;
                             $result{'__RAW__'}->{"$_"} .= "$biblionumber,$title-$weight;";
                         # create a new ligne for this entry
@@ -3258,9 +3283,8 @@ sub ModBiblioMarc {
 
     # deal with UNIMARC field 100 (encoding) : create it if needed & set encoding to unicode
     if ( $encoding eq "UNIMARC" ) {
-        my $string;
-        if ( length($record->subfield( 100, "a" )) == 35 ) {
-            $string = $record->subfield( 100, "a" );
+        my $string = $record->subfield( 100, "a" );
+        if ( ($string) && ( length($record->subfield( 100, "a" )) == 35 ) ) {
             my $f100 = $record->field(100);
             $record->delete_field($f100);
         }

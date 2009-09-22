@@ -38,6 +38,7 @@ use C4::External::Syndetics qw(get_syndetics_index get_syndetics_summary get_syn
 use C4::Review;
 use C4::Serials;
 use C4::Members;
+use C4::VirtualShelves;
 use C4::XSLT;
 
 BEGIN {
@@ -265,6 +266,13 @@ $template->param(
     reviews             => $reviews,
     loggedincommenter   => $loggedincommenter
 );
+
+# Lists
+
+if (C4::Context->preference("virtualshelves") ) {
+   $template->param( 'GetShelves' => GetBibliosShelves( $biblionumber ) );
+}
+
 
 # XISBN Stuff
 if (C4::Context->preference("OPACFRBRizeEditions")==1) {
@@ -541,5 +549,14 @@ if (C4::Context->preference('TagsEnabled') and $tag_quantity = C4::Context->pref
 	$template->param(TagLoop => get_tags({biblionumber=>$biblionumber, approved=>1,
 								'sort'=>'-weight', limit=>$tag_quantity}));
 }
+
+#Search for title in links
+if (my $search_for_title = C4::Context->preference('OPACSearchForTitleIn')){
+    $search_for_title =~ s/{AUTHOR}/$dat->{author}/g;
+    $search_for_title =~ s/{TITLE}/$dat->{title}/g;
+    $search_for_title =~ s/{ISBN}/$isbn/g;
+ $template->param('OPACSearchForTitleIn' => $search_for_title);
+}
+
 
 output_html_with_http_headers $query, $cookie, $template->output;

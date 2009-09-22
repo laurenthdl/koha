@@ -305,6 +305,7 @@ sub get_template_and_user {
             suggestion                  => C4::Context->preference("suggestion"),
             virtualshelves              => C4::Context->preference("virtualshelves"),
 			StaffSerialIssueDisplayCount => C4::Context->preference("StaffSerialIssueDisplayCount"),
+            NoZebra                     => C4::Context->preference('NoZebra'),
         );
     }
     else {
@@ -350,6 +351,8 @@ sub get_template_and_user {
             OpacMainUserBlock         => "" . C4::Context->preference("OpacMainUserBlock"),
             OpacNav                   => "" . C4::Context->preference("OpacNav"),
             OpacPasswordChange        => C4::Context->preference("OpacPasswordChange"),
+            OPACPatronDetails        => C4::Context->preference("OPACPatronDetails"),
+            OPACFinesTab              => C4::Context->preference("OPACFinesTab"),
             OpacTopissue              => C4::Context->preference("OpacTopissue"),
             RequestOnOpac             => C4::Context->preference("RequestOnOpac"),
             TemplateEncoding          => "". C4::Context->preference("TemplateEncoding"),
@@ -1465,6 +1468,10 @@ sub haspermission {
 
 sub getborrowernumber {
     my ($userid) = @_;
+    my $userenv = C4::Context->userenv;
+    if ( defined( $userenv ) && ref( $userenv ) eq 'HASH' && $userenv->{number} ) {
+        return $userenv->{number};
+    }
     my $dbh = C4::Context->dbh;
     for my $field ( 'userid', 'cardnumber' ) {
         my $sth =
